@@ -16,6 +16,13 @@ body{margin:0}[hidden]{display:none!important}img{max-width:100%}
 .links{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
 .links a{color:var(--accent)}
 body.saving form.add button{opacity:.5;pointer-events:none}
+table{min-width:580px}
+tr.done td{opacity:.5}tr.done td.fab{opacity:1}
+td.fab{white-space:nowrap}
+.okchip{color:var(--ok);font-weight:600;font-size:13px}
+.pend{color:var(--muted);font-size:13px}
+.chk{display:inline-flex;gap:6px;align-items:center;font-size:13px;cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:var(--ok);cursor:pointer}
 /* Layout: order sheet for the factory — one card per sneaker (photo + day-by-day size grid), grand total sheet at the end */
 :root{
   --bg:#f6f5f2; --card:#ffffff; --fg:#1d1b19; --muted:#6f6a63; --line:#e3dfd8;
@@ -248,6 +255,7 @@ function buildCards(){
     </div>
   </article>`).join("");
   document.querySelectorAll("form[data-form]").forEach(f=>f.addEventListener("submit",onAdd));
+  $("#cards").addEventListener("change",e=>{if(RO)return;const c=e.target.closest("input[data-fab]");if(c)onFab(c)});
   $("#cards").addEventListener("click",e=>{if(RO)return;const b=e.target.closest("button.del");if(b)return onDel(b.dataset.doc,b);const ed=e.target.closest("button.edit");if(ed)return startEdit(ed.dataset.doc);const c=e.target.closest("button.cancel");if(c)endEdit(c.closest("form"));});
 }
 function render(){
@@ -256,16 +264,16 @@ function render(){
     const card=document.getElementById("c-"+m.id);
     const rows=entries.filter(e=>e.modelo===m.id).sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:(a.creado||0)-(b.creado||0));
     const tot={}; SIZES.forEach(s=>tot[s]=0);
-    rows.forEach(r=>SIZES.forEach(s=>tot[s]+=num(r["t"+s])));
+    rows.filter(r=>!r.fabricado).forEach(r=>SIZES.forEach(s=>tot[s]+=num(r["t"+s])));
     const sum=SIZES.reduce((a,s)=>a+tot[s],0);
     SIZES.forEach(s=>grand[s]+=tot[s]); if(sum>0) withCount++;
     card.querySelector("[data-sum]").textContent=sum;
     card.hidden = onlyWith && rows.length===0;
     const tbl=card.querySelector("[data-tbl]");
     if(!rows.length){tbl.innerHTML=RO?`<p class="empty">Sin pedidos.</p>`:`<p class="empty">Sin pares agregados todavía. Escribe la fecha de la orden y las cantidades abajo y toca Agregar.</p>`;continue;}
-    tbl.innerHTML=`<table><thead><tr><th style="text-align:left">Fecha de la orden</th>${SIZES.map(s=>`<th class="size">T${s}</th>`).join("")}<th>Total</th>${RO?"":"<th></th>"}</tr></thead>
-    <tbody>${rows.map(r=>{const rs=SIZES.reduce((a,s)=>a+num(r["t"+s]),0);return `<tr><td class="day">${esc(fmt(r.fecha))}<small>entregar antes del ${esc(plus14(r.fecha))}</small></td>${SIZES.map(s=>{const v=num(r["t"+s]);return `<td class="n${v?"":" zero"}">${v}</td>`}).join("")}<td class="rowsum">${rs}</td>${RO?"":`<td class="act"><button type="button" class="edit" data-doc="${esc(r.id)}" aria-label="Editar orden del ${esc(fmt(r.fecha))}">✎</button><button type="button" class="del" data-doc="${esc(r.id)}" aria-label="Borrar orden del ${esc(fmt(r.fecha))}">×</button></td>`}</tr>`}).join("")}</tbody>
-    <tfoot><tr><td class="lab">Total a fabricar</td>${SIZES.map(s=>`<td>${tot[s]}</td>`).join("")}<td>${sum}</td>${RO?"":"<td></td>"}</tr></tfoot></table>`;
+    tbl.innerHTML=`<table><thead><tr><th style="text-align:left">Fecha de la orden</th>${SIZES.map(s=>`<th class="size">T${s}</th>`).join("")}<th>Total</th><th>Fabricado</th>${RO?"":"<th></th>"}</tr></thead>
+    <tbody>${rows.map(r=>{const rs=SIZES.reduce((a,s)=>a+num(r["t"+s]),0);const fab=RO?(r.fabricado?`<span class="okchip">✓ Fabricado</span>`:`<span class="pend">Pendiente</span>`):`<label class="chk"><input type="checkbox" data-fab="${esc(r.id)}"${r.fabricado?" checked":""}> Fabricado</label>`;return `<tr class="${r.fabricado?"done":""}"><td class="day">${esc(fmt(r.fecha))}<small>entregar antes del ${esc(plus14(r.fecha))}</small></td>${SIZES.map(s=>{const v=num(r["t"+s]);return `<td class="n${v?"":" zero"}">${v}</td>`}).join("")}<td class="rowsum">${rs}</td><td class="fab">${fab}</td>${RO?"":`<td class="act"><button type="button" class="edit" data-doc="${esc(r.id)}" aria-label="Editar orden del ${esc(fmt(r.fecha))}">✎</button><button type="button" class="del" data-doc="${esc(r.id)}" aria-label="Borrar orden del ${esc(fmt(r.fecha))}">×</button></td>`}</tr>`}).join("")}</tbody>
+    <tfoot><tr><td class="lab">Total a fabricar</td>${SIZES.map(s=>`<td>${tot[s]}</td>`).join("")}<td>${sum}</td><td></td>${RO?"":"<td></td>"}</tr></tfoot></table>`;
   }
   const all=SIZES.reduce((a,s)=>a+grand[s],0);
   $("#grand").innerHTML=SIZES.map(s=>`<div class="sz"><span>Talla ${s}</span><b>${grand[s]}</b></div>`).join("")+`<div class="sz all"><span>Total</span><b>${all}</b></div>`;
@@ -293,6 +301,13 @@ async function onDel(docId,btn){
   if(!token){showToken("Primero conecta tu llave de GitHub.");return}
   if(btn.dataset.armed!=="1"){btn.dataset.armed="1";btn.textContent="¿Borrar?";setTimeout(()=>{btn.dataset.armed="";btn.textContent="×"},3000);return;}
   status("Borrando…"); await save(list=>list.filter(r=>r.id!==docId),"Orden borrada");
+}
+async function onFab(c){
+  const id=c.dataset.fab, v=c.checked;
+  if(!token){c.checked=!v;showToken("Primero conecta tu llave de GitHub.");return}
+  c.disabled=true; status("Guardando…");
+  const ok=await save(list=>list.map(r=>r.id===id?{...r,fabricado:v,fabricadoEn:v?today():null}:r),v?"Marcado como fabricado":"Marcado como pendiente");
+  if(!ok){c.checked=!v;c.disabled=false}
 }
 function startEdit(docId){
   const r=entries.find(x=>x.id===docId); if(!r)return;
