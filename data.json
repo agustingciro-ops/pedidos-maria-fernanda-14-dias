@@ -1,0 +1,53 @@
+{
+ "actualizado": "2026-11-06T18:00:00Z",
+ "entradas": [
+  {
+   "id": "5dggc4upyaaid6nrjpti",
+   "creado": 1793983843131,
+   "fecha": "2026-11-06",
+   "modelo": "coquette-black",
+   "t5": 0,
+   "t6": 0,
+   "t7": 0,
+   "t8": 0,
+   "t9": 0,
+   "t10": 1
+  },
+  {
+   "id": "7sr4avpahlc5igi9mjth",
+   "creado": 1793985665166,
+   "fecha": "2026-11-06",
+   "modelo": "albania-red",
+   "t5": 1,
+   "t6": 0,
+   "t7": 0,
+   "t8": 0,
+   "t9": 0,
+   "t10": 0
+  },
+  {
+   "id": "88d8l11k5izy6nvji8hc",
+   "creado": 1793983808502,
+   "fecha": "2026-11-06",
+   "modelo": "cloe",
+   "t5": 1,
+   "t6": 0,
+   "t7": 0,
+   "t8": 0,
+   "t9": 0,
+   "t10": 0
+  },
+  {
+   "id": "qs50upz9vasv5rvncgnn",
+   "creado": 1793944552790,
+   "fecha": "2026-11-05",
+   "modelo": "dani",
+   "t5": 0,
+   "t6": 2,
+   "t7": 0,
+   "t8": 0,
+   "t9": 0,
+   "t10": 0
+  }
+ ]
+}
