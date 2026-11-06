@@ -1,5 +1,5 @@
 {
- "actualizado": "2026-11-06T20:27:57.356Z",
+ "actualizado": "2026-11-06T20:28:17.656Z",
  "entradas": [
   {
    "id": "5dggc4upyaaid6nrjpti",
@@ -24,8 +24,8 @@
    "t8": 0,
    "t9": 0,
    "t10": 0,
-   "fabricado": true,
-   "fabricadoEn": "2026-11-06"
+   "fabricado": false,
+   "fabricadoEn": null
   },
   {
    "id": "88d8l11k5izy6nvji8hc",
