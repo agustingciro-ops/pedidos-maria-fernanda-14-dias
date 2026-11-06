@@ -186,10 +186,17 @@ async function loadPublic(){
   if(!r.ok) throw new Error("No se encontró data.json");
   return {data:await r.json(),sha:null};
 }
+async function ghError(r,when){
+  let m=""; try{m=(await r.json()).message||""}catch(e){}
+  const e=new Error("GitHub respondió "+r.status+(m?" ("+m+")":""));
+  if(r.status===401){e.code="token";e.hint="GitHub dice que la llave no es válida ("+r.status+(m?": "+m:"")+"). Revisa que la copiaste completa, que no la borraste en GitHub y que no venció. Pega una nueva."}
+  else if(r.status===403&&/rate limit/i.test(m)){e.hint="GitHub está limitando las consultas. Espera unos minutos y recarga."}
+  else if(r.status===403||r.status===404){e.code="token";e.hint="La llave funciona, pero no tiene permiso para "+when+" en este repositorio ("+r.status+(m?": "+m:"")+"). En GitHub edita la llave: Repository access → Only select repositories → pedidos-maria-fernanda-14-dias, y Permissions → Contents → Read and write. Luego vuelve a pegarla."}
+  return e;
+}
 async function loadAuth(){
   const r=await fetch(API+"?t="+Date.now(),{headers:{Accept:"application/vnd.github+json",Authorization:"Bearer "+token},cache:"no-store"});
-  if(r.status===401||r.status===403){const e=new Error("token");e.code="token";throw e}
-  if(!r.ok) throw new Error("GitHub respondió "+r.status);
+  if(!r.ok) throw await ghError(r,"leer");
   const j=await r.json(); return {data:JSON.parse(b64decode(j.content)),sha:j.sha};
 }
 async function load(){
@@ -200,7 +207,7 @@ async function load(){
     const when=updatedAt?new Date(updatedAt).toLocaleString("es",{day:"numeric",month:"short",hour:"numeric",minute:"2-digit"}):"";
     status(RO?(when?"Última actualización: "+when:"Sin pedidos todavía."):(entries.length?"Al día"+(when?" · guardado "+when:"")+".":"Aún no hay pedidos. Agrega la primera orden en cualquier tenis."));
   }catch(e){
-    if(e.code==="token"){showToken("Tu llave de GitHub no funciona o venció. Pega una nueva.");return}
+    if(e.code==="token"){showToken(e.hint||"Tu llave de GitHub no funciona. Pega una nueva.");return}
     status("No se pudieron cargar los pedidos. Revisa tu conexión y recarga la página.");
   }
 }
@@ -214,14 +221,13 @@ async function save(mutate,okMsg){
       const r=await fetch(API,{method:"PUT",headers:{Accept:"application/vnd.github+json",Authorization:"Bearer "+token,"Content-Type":"application/json"},
         body:JSON.stringify({message:okMsg,content:b64encode(JSON.stringify(payload,null,1)+"\n"),sha})});
       if(r.status===409||r.status===422){continue}
-      if(r.status===401||r.status===403){const e=new Error("token");e.code="token";throw e}
-      if(!r.ok) throw new Error("GitHub respondió "+r.status);
+      if(!r.ok) throw await ghError(r,"guardar");
       const j=await r.json(); sha=j.content.sha; entries=next; updatedAt=payload.actualizado; render(); status(okMsg+"."); return true;
     }
     status("Alguien guardó al mismo tiempo. Recarga la página e inténtalo de nuevo."); return false;
   }catch(e){
-    if(e.code==="token") showToken("Tu llave de GitHub no funciona o venció. Pega una nueva.");
-    else status("No se guardó: "+e.message+".");
+    if(e.code==="token") showToken(e.hint||"Tu llave de GitHub no funciona. Pega una nueva.");
+    else status(e.hint||("No se guardó: "+e.message+"."));
     return false;
   }finally{busy=false;document.body.classList.remove("saving")}
 }
@@ -317,7 +323,10 @@ buildCards(); setFilter(onlyWith);
 if(!RO){
   token=readToken();
   $("#tokenPanel").hidden=!!token;
-  $("#tokenForm").addEventListener("submit",async e=>{e.preventDefault();const v=$("#tokenInput").value.trim();if(!v)return;token=v;writeToken(v);$("#tokenInput").value="";$("#tokenPanel").hidden=true;status("Conectando…");await load()});
+  $("#tokenForm").addEventListener("submit",async e=>{e.preventDefault();const v=$("#tokenInput").value.replace(/\s+/g,"");if(!v)return;token=v;writeToken(v);$("#tokenInput").value="";$("#tokenPanel").hidden=true;status("Conectando…");
+    await load(); if(!$("#tokenPanel").hidden) return;
+    if(readToken()!==v) status("Conectado, pero este navegador no deja guardar la llave: te la pedirá otra vez al recargar. Prueba en Chrome normal (no en modo incógnito).");
+    else status("Conectado. Ya puedes agregar órdenes.");});
   $("#forget").addEventListener("click",()=>{writeToken(null);token=null;showToken("Llave borrada de este navegador. Pega una para volver a guardar.")});
 }
 load();
